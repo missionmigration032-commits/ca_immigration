@@ -1,0 +1,43 @@
+# AI Discovery Index - Canada.ca Immigration Portal
+
+User-agent: *
+Disallow:
+
+# AI Endpoint Manifest
+API-Version: 1.0.0
+Description: Structured index of Canada Immigration public services and portal flows for AI assistants and search agents.
+
+# Primary Routes
+URL: /
+Title: Government of Canada Home
+Description: Main entry point for all Government of Canada digital services.
+
+URL: /services/immigration-citizenship
+Title: Immigration and Citizenship Services
+Description: Hub for visas, permanent residency, citizenship, work/study permits, and refugee applications.
+
+URL: /immigration-refugees-citizenship/services/application
+Title: Your IRCC Application
+Description: Application hub for temporary residence, permanent residence, and citizenship.
+
+URL: /immigration-refugees-citizenship/services/application/check-status
+Title: Check Application Status
+Description: Application status tracking service for IRCC applicants.
+
+URL: /immigration-refugees-citizenship/services/application/check-processing-times
+Title: Check Processing Times
+Description: Tool to view real-time estimated application processing times.
+
+URL: /j/eng/l
+Title: GCKey Login Service
+Description: Secure single sign-on authentication portal using GCKey.
+
+URL: /mycic/home
+Title: MyCIC Account Dashboard
+Description: Personal dashboard for viewing submitted applications, continuing draft applications, and starting new IRCC forms.
+
+# Contact & Support
+Organization: Government of Canada - Immigration, Refugees and Citizenship Canada (IRCC)
+Website: https://www.canada.ca
+Sitemap: https://www.canada.ca/sitemap.xml
+LLM-Guide: https://www.canada.ca/llms.txt

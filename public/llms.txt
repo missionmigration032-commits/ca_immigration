@@ -1,0 +1,37 @@
+# Canada.ca Immigration & Citizenship Portal
+
+> Official Government of Canada portal for immigration services, GCKey account access, MyCIC dashboard, visa applications, and status tracking.
+
+## Core Services & Navigation
+
+- [Home Page](https://www.canada.ca/): Government of Canada main portal landing page.
+- [Immigration and Citizenship Services](https://www.canada.ca/services/immigration-citizenship): Main hub for all visa, permit, citizenship, and refugee services.
+- [Your IRCC Application](https://www.canada.ca/immigration-refugees-citizenship/services/application): Guidance on applying to come to Canada, visitor visas, study permits, work permits, and Express Entry.
+- [Check Application Status](https://www.canada.ca/immigration-refugees-citizenship/services/application/check-status): Online status tracker for submitted immigration and visa applications.
+- [Check Processing Times](https://www.canada.ca/immigration-refugees-citizenship/services/application/check-processing-times): Estimated processing times tool by application type.
+- [IRCC Secure Account Sign In](https://www.canada.ca/immigration-refugees-citizenship/services/application/account): Choose between GCKey or Sign-In Partner.
+- [GCKey Login Service](https://www.canada.ca/j/eng/l): Secure GCKey credential authentication portal.
+- [MyCIC Account Dashboard](https://www.canada.ca/mycic/home): User portal displaying submitted applications, saved drafts, and application action items.
+
+## Secondary Services
+
+- [Jobs & Employment](https://www.canada.ca/jobs): Work in Canada, job bank, and employment opportunities.
+- [Travel & Tourism](https://www.canada.ca/travel): Travel advisories, passports, and entry requirements.
+- [Business & Industry](https://www.canada.ca/business): Business immigration, start-up visas, and corporate services.
+- [Taxes](https://www.canada.ca/services/taxes): Personal and business income tax filing instructions.
+- [Environment](https://www.canada.ca/services/environment): Environmental protection, weather, and climate information.
+
+## Key Application Types Covered
+
+1. **Visitor Visas & eTAs**: Applications to visit Canada as a tourist, student visitor, or business traveler.
+2. **Work Permits**: Employer-specific work permits, open work permits, and International Experience Canada (IEC).
+3. **Study Permits**: Initial study permits, extensions, and Student Direct Stream guidelines.
+4. **Express Entry**: Federal Skilled Worker, Federal Skilled Trades, and Canadian Experience Class.
+5. **Canadian Citizenship**: Proof of citizenship, citizenship certificates, and search of citizenship records.
+6. **Refugee & Protected Persons**: Interim Federal Health Program (IFHP) coverage and health benefits.
+
+## System Notes for AI Agents
+
+- Language Support: English (`/en/`) and French (`/fr/`).
+- Authentication Portal: GCKey (`/j/eng/l`) and MyCIC Dashboard (`/mycic/home`).
+- Contact Info: IRCC Help Centre (1-888-242-2100 in Canada).

@@ -1,0 +1,63 @@
+# ==============================================================================
+# Robots.txt for Canada.ca Immigration Portal
+# Configured for Search Engines & AI Assistants (LLMs)
+# ==============================================================================
+
+User-agent: *
+Allow: /
+Allow: /jobs
+Allow: /services/
+Allow: /immigration-refugees-citizenship/
+Allow: /mycic/
+Allow: /travel
+Allow: /business
+Allow: /benefits
+Allow: /health
+Allow: /taxes
+Allow: /environment
+
+# Sitemap Location
+Sitemap: https://www.canada.ca/sitemap.xml
+
+# ==============================================================================
+# Explicit Rules for AI Crawlers & LLM Agents
+# ==============================================================================
+
+# OpenAI ChatGPT Crawlers
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+# Anthropic Claude Crawlers
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+# Perplexity AI Crawler
+User-agent: PerplexityBot
+Allow: /
+
+# Google AI Extended Crawler
+User-agent: Google-Extended
+Allow: /
+
+# Apple Intelligence Crawler
+User-agent: Applebot-Extended
+Allow: /
+
+# Common Crawl & Others
+User-agent: CCBot
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: Cohere-ai
+Allow: /
