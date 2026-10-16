@@ -1,156 +1,205 @@
-import React, { useState } from 'react';
+// src/pages/EmployeeDashboard.jsx
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import '../components/dashboard/dashboard.css';
+
+import {
+  FileText,
+  CreditCard,
+  Users,
+  LogOut
+} from 'lucide-react';
+
+import {
+  getInitialVisaFormData,
+  getInitialPaymentFormData,
+  getInitialAccountFormData
+} from '../components/dashboard/dashboardUtils';
+
+// Modals
+import EditUserModal from '../components/dashboard/modals/EditUserModal';
+import EditVisaModal from '../components/dashboard/modals/EditVisaModal';
+import VisaPreviewModal from '../components/dashboard/modals/VisaPreviewModal';
+
+// Tabs
+import VisasTab from '../components/dashboard/tabs/VisasTab';
+import PaymentsTab from '../components/dashboard/tabs/PaymentsTab';
+import AccountsTab from '../components/dashboard/tabs/AccountsTab';
 
 export default function EmployeeDashboard() {
   const { user, token, logout } = useAuth();
   const navigate = useNavigate();
 
   // Redirect if not employee
-  React.useEffect(() => {
+  useEffect(() => {
     if (!user || (user.role !== 'employe' && user.role !== 'employee')) {
-      navigate("/j/eng/l");
+      navigate('/j/eng/l');
     }
   }, [user, navigate]);
 
-  const [activeView, setActiveView] = useState('menu');
-  const [visaLoading, setVisaLoading] = useState(false);
-  const [accountLoading, setAccountLoading] = useState(false);
-  const [visaMessage, setVisaMessage] = useState(null);
-  const [accountMessage, setAccountMessage] = useState(null);
+  const [activeTab, setActiveTab] = useState('visas');
+  const [alert, setAlert] = useState(null);
 
-  // Visa Form State
-  const [visaData, setVisaData] = useState({
-    userId: '',
-    applicationType: 'visa',
-    familyName: '',
-    givenNames: '',
-    origin: 'ca',
-    document: '',
-    documentName: '',
-    visaType: '',
-    biometricsNumber: '',
-    dateOfBiometricsEnrolment: '',
-    biometricsExpiryDate: '',
-    uci: '',
-    applicationNumber: '',
-    receiveDate: '',
-    medicalExaminationPassDate: '',
-    documentReviewDate: '',
-    latestUpdateDate: '',
-    latestUpdateStatus: 'draft',
-    latestUpdateContent: ''
-  });
+  // Collections state
+  const [visasList, setVisasList] = useState([]);
+  const [paymentsList, setPaymentsList] = useState([]);
+  const [usersList, setUsersList] = useState([]);
 
-  const [users, setUsers] = useState([]);
-  const [uploadedDocs, setUploadedDocs] = useState([]);
-  const [currentDocName, setCurrentDocName] = useState('');
-  const [currentDocBase64, setCurrentDocBase64] = useState('');
+  // Search states
+  const [visaSearch, setVisaSearch] = useState('');
+  const [paymentSearch, setPaymentSearch] = useState('');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState('all');
+  const [userSearch, setUserSearch] = useState('');
 
-  React.useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        let response = await fetch(`${import.meta.env.VITE_API_URL}/api/users`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+  // Active Modals
+  const [editingUser, setEditingUser] = useState(null);
+  const [editingVisa, setEditingVisa] = useState(null);
+  const [previewItem, setPreviewItem] = useState(null);
+
+  // Form states
+  const [visaFormData, setVisaFormData] = useState(getInitialVisaFormData);
+  const [visaDocs, setVisaDocs] = useState([]);
+  const [visaDocName, setVisaDocName] = useState('');
+  const [visaDocBase64, setVisaDocBase64] = useState('');
+  const [isVisaSubmitting, setIsVisaSubmitting] = useState(false);
+
+  const [paymentFormData, setPaymentFormData] = useState(getInitialPaymentFormData);
+  const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
+
+  const [accountFormData, setAccountFormData] = useState(() => ({
+    ...getInitialAccountFormData(),
+    role: 'user'
+  }));
+  const [isAccountSubmitting, setIsAccountSubmitting] = useState(false);
+
+  const showAlert = (message, type = 'success') => {
+    setAlert({ message, type });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => {
+      setAlert(null);
+    }, 6000);
+  };
+
+  // API Fetchers
+  const fetchUsers = useCallback(async () => {
+    if (!token) return;
+    try {
+      let res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/users?origin=ca`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        res = await fetch(`${import.meta.env.VITE_API_URL}/api/users?origin=ca`, {
+          headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) {
-          response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/users`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-        }
-        if (response.ok) {
-          const data = await response.json();
-          if (Array.isArray(data)) {
-            setUsers(data);
-          } else if (data && Array.isArray(data.users)) {
-            setUsers(data.users);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch users:", err);
       }
-    };
-    if (token) {
-      fetchUsers();
+      if (res.ok) {
+        const data = await res.json();
+        setUsersList(Array.isArray(data) ? data : (data.users || []));
+      }
+    } catch (err) {
+      console.error('Failed to fetch users:', err);
     }
   }, [token]);
 
-  // Account Form State (fixed to role: 'user')
-  const [accountData, setAccountData] = useState({
-    username: '',
-    password: ''
-  });
+  const fetchVisas = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/visas?origin=ca`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setVisasList(Array.isArray(data) ? data : (data.visas || []));
+      }
+    } catch (err) {
+      console.error('Failed to fetch visas:', err);
+    }
+  }, [token]);
 
-  const handleFileChange = (e) => {
+  const fetchPayments = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/payments?origin=ca`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPaymentsList(Array.isArray(data) ? data : (data.payments || []));
+      }
+    } catch (err) {
+      console.error('Failed to fetch payments:', err);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (token) {
+      fetchUsers();
+      fetchVisas();
+      fetchPayments();
+    }
+  }, [token, fetchUsers, fetchVisas, fetchPayments]);
+
+  // Document Helpers for Visa
+  const handleVisaFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setCurrentDocBase64(reader.result);
-        setCurrentDocName(file.name);
+        setVisaDocBase64(reader.result);
+        if (!visaDocName) setVisaDocName(file.name);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const addDocumentToList = () => {
-    if (!currentDocBase64) {
-      alert("Please select a file first");
+  const addVisaDocToList = () => {
+    if (!visaDocBase64) {
+      alert('Please select a file first.');
       return;
     }
-    if (!currentDocName.trim()) {
-      alert("Please enter a document name");
-      return;
-    }
-    setUploadedDocs(prev => [
-      ...prev,
-      { document: currentDocBase64, documentName: currentDocName }
-    ]);
-    // Reset file inputs
-    setCurrentDocBase64('');
-    setCurrentDocName('');
-    const fileInput = document.getElementById('document-input');
-    if (fileInput) fileInput.value = '';
+    const name = visaDocName.trim() || 'Attached Document';
+    setVisaDocs(prev => [...prev, { document: visaDocBase64, documentName: name }]);
+    setVisaDocBase64('');
+    setVisaDocName('');
+    const input = document.getElementById('visa-doc-file-input');
+    if (input) input.value = '';
   };
 
-  const removeDocumentFromList = (index) => {
-    setUploadedDocs(prev => prev.filter((_, idx) => idx !== index));
+  const removeVisaDocFromList = (idx) => {
+    setVisaDocs(prev => prev.filter((_, i) => i !== idx));
   };
 
+  // Visa Submit
   const handleVisaSubmit = async (e) => {
     e.preventDefault();
-
-    if (currentDocBase64 || currentDocName.trim()) {
-      alert("You have a document selected but not added. Please click 'Add Document' first or clear the input.");
+    if (visaDocBase64 || visaDocName.trim()) {
+      alert("You have a document selected but not added. Please click 'Add to List' or clear it.");
       return;
     }
 
-    setVisaLoading(true);
-    setVisaMessage(null);
-
+    setIsVisaSubmitting(true);
     const payload = {
-      ...visaData,
-      userId: visaData.userId,
-      user: visaData.userId,
+      ...visaFormData,
+      visaApplicant: `${visaFormData.givenNames || ''} ${visaFormData.familyName || ''}`.trim(),
+      visaorigin: 'ca',
+      origin: 'ca',
       latestUpdate: {
-        date: visaData.latestUpdateDate,
-        status: visaData.latestUpdateStatus,
-        content: visaData.latestUpdateContent
+        date: visaFormData.latestUpdateDate,
+        status: visaFormData.latestUpdateStatus,
+        content: visaFormData.latestUpdateContent
       },
-      document: uploadedDocs
+      document: visaDocs
     };
+
     delete payload.latestUpdateDate;
     delete payload.latestUpdateStatus;
     delete payload.latestUpdateContent;
-    delete payload.documentName;
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/visas`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/visas`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -158,494 +207,374 @@ export default function EmployeeDashboard() {
         },
         body: JSON.stringify(payload)
       });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setVisaMessage({ type: 'success', text: data.message || 'Visa created successfully!' });
-        setUploadedDocs([]);
-        setVisaData({
-          userId: '',
-          applicationType: 'visa',
-          familyName: '',
-          givenNames: '',
-          origin: 'ca',
-          document: '',
-          documentName: '',
-          visaType: '',
-          biometricsNumber: '',
-          dateOfBiometricsEnrolment: '',
-          biometricsExpiryDate: '',
-          uci: '',
-          applicationNumber: '',
-          receiveDate: '',
-          medicalExaminationPassDate: '',
-          documentReviewDate: '',
-          latestUpdateDate: '',
-          latestUpdateStatus: 'draft',
-          latestUpdateContent: ''
-        });
+      const data = await res.json();
+      if (res.ok) {
+        showAlert(data.message || 'Visa application created successfully!', 'success');
+        setVisaFormData(getInitialVisaFormData());
+        setVisaDocs([]);
+        fetchVisas();
       } else {
-        setVisaMessage({ type: 'error', text: data.message || 'Failed to create visa.' });
+        showAlert(data.message || 'Failed to create visa application.', 'danger');
       }
     } catch (err) {
-      console.error("Create visa error:", err);
-      setVisaMessage({ type: 'error', text: 'Network error. Failed to connect to server.' });
+      console.error('Create visa error:', err);
+      showAlert('Network error while creating visa.', 'danger');
     } finally {
-      setVisaLoading(false);
+      setIsVisaSubmitting(false);
     }
   };
 
-  const handleAccountSubmit = async (e) => {
-    e.preventDefault();
-    setAccountLoading(true);
-    setAccountMessage(null);
+  const handleDeleteVisa = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this visa record?')) return;
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/visas/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showAlert(data.message || 'Visa record deleted successfully.', 'success');
+        fetchVisas();
+      } else {
+        showAlert(data.message || 'Failed to delete visa.', 'danger');
+      }
+    } catch (err) {
+      console.error('Delete visa error:', err);
+      showAlert('Network error deleting visa.', 'danger');
+    }
+  };
 
-    const endpoint = `${import.meta.env.VITE_API_URL}/api/auth/user`;
+  // Payments Submit
+  const handleCreatePayment = async (e) => {
+    e.preventDefault();
+    setIsPaymentSubmitting(true);
+
+    const payload = {
+      paymentType: 'visa',
+      referenceNumber: paymentFormData.referenceNumber,
+      amount: Number(paymentFormData.amount),
+      currency: 'CAD',
+      status: paymentFormData.status,
+      issuingOffice: paymentFormData.issuingOffice,
+      internalRef: paymentFormData.internalRef,
+      transactionDate: paymentFormData.transactionDate,
+      origin: 'ca',
+      userId: paymentFormData.userId || null,
+      visaId: paymentFormData.selectedVisaId,
+      visaType: paymentFormData.visaType
+    };
 
     try {
-      const response = await fetch(endpoint, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/payments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          username: accountData.username,
-          password: accountData.password
-        })
+        body: JSON.stringify(payload)
       });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setAccountMessage({ type: 'success', text: data.message || 'User account created successfully!' });
-        setAccountData({
-          username: '',
-          password: ''
-        });
+      const data = await res.json();
+      if (res.ok) {
+        showAlert('Payment record created successfully!', 'success');
+        setPaymentFormData(getInitialPaymentFormData());
+        fetchPayments();
       } else {
-        setAccountMessage({ type: 'error', text: data.message || 'Failed to create user account.' });
+        showAlert(data.message || 'Failed to create payment.', 'danger');
       }
     } catch (err) {
-      console.error("Create user account error:", err);
-      setAccountMessage({ type: 'error', text: 'Network error. Failed to connect to server.' });
+      console.error('Create payment error:', err);
+      showAlert('Network error creating payment.', 'danger');
     } finally {
-      setAccountLoading(false);
+      setIsPaymentSubmitting(false);
+    }
+  };
+
+  const handleTogglePaymentStatus = async (payment) => {
+    const newStatus = (payment.status || '').toLowerCase() === 'paid' ? 'pending' : 'paid';
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/payments/${payment._id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          status: newStatus,
+          transactionDate: newStatus === 'paid' ? new Date().toISOString() : null
+        })
+      });
+      if (res.ok) {
+        showAlert(`Payment status updated to ${newStatus.toUpperCase()}`, 'success');
+        fetchPayments();
+      } else {
+        showAlert('Failed to update payment status.', 'danger');
+      }
+    } catch (err) {
+      console.error('Toggle payment status error:', err);
+      showAlert('Network error updating payment status.', 'danger');
+    }
+  };
+
+  const handleDeletePayment = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this payment record?')) return;
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/payments/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        showAlert('Payment record deleted.', 'success');
+        fetchPayments();
+      } else {
+        showAlert('Failed to delete payment.', 'danger');
+      }
+    } catch (err) {
+      console.error('Delete payment error:', err);
+      showAlert('Network error deleting payment.', 'danger');
+    }
+  };
+
+  // Accounts Handlers
+  const handleCreateAccount = async () => {
+    if (!accountFormData.username || !accountFormData.password) {
+      alert('Username and password are required.');
+      return;
+    }
+
+    setIsAccountSubmitting(true);
+    const payload = {
+      username: accountFormData.username.trim(),
+      password: accountFormData.password,
+      role: 'user',
+      origin: 'ca'
+    };
+
+    if (accountFormData.email) payload.email = accountFormData.email.trim();
+    if (accountFormData.givenName) payload.givenName = accountFormData.givenName.trim();
+    if (accountFormData.familyName) payload.familyName = accountFormData.familyName.trim();
+    if (accountFormData.passport) payload.passport = accountFormData.passport.trim();
+    if (accountFormData.dob) payload.dob = accountFormData.dob.trim();
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showAlert('User account created successfully!', 'success');
+        setAccountFormData({
+          ...getInitialAccountFormData(),
+          role: 'user'
+        });
+        fetchUsers();
+      } else {
+        showAlert(data.message || 'Failed to create account.', 'danger');
+      }
+    } catch (err) {
+      console.error('Create account error:', err);
+      showAlert('Network error while creating account.', 'danger');
+    } finally {
+      setIsAccountSubmitting(false);
+    }
+  };
+
+  const handleDeleteUser = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this user? All associated visas will also be removed.')) return;
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/users/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showAlert('User account and associated records deleted.', 'success');
+        fetchUsers();
+        fetchVisas();
+      } else {
+        showAlert(data.message || 'Failed to delete user.', 'danger');
+      }
+    } catch (err) {
+      console.error('Delete user error:', err);
+      showAlert('Network error deleting user.', 'danger');
     }
   };
 
   return (
-    <div className="gckey-page" style={{ backgroundColor: '#fff', minHeight: '100vh', fontFamily: 'Noto Sans, sans-serif' }}>
+    <div className="ca-dashboard-wrapper">
       <SEO
         title="Employee Dashboard - Immigration, Refugees and Citizenship Canada"
-        description="Employee dashboard for managing visas and user accounts."
-        keywords="employee dashboard, manage visas, create user account"
+        description="Employee operations portal for managing Canadian visas, fee payments, and applicant accounts."
+        keywords="employee dashboard, IRCC processing, Canada visa operations"
       />
 
-      <div className="container" style={{ paddingTop: '10px', paddingBottom: '50px' }}>
-        <main role="main" property="mainContentOfPage" id="wb-cont">
-          <div className="row" style={{ marginBottom: '15px' }}>
-            <div className="col-xs-12" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
-              <div>
-                <h1
-                  style={{
-                    fontSize: '32px',
-                    fontWeight: '700',
-                    color: '#26374a',
-                    marginTop: '10px',
-                    marginBottom: '10px',
-                    lineHeight: '1.2',
-                  }}
-                >
-                  Employee Dashboard
-                </h1>
-                <p style={{ fontSize: '15px', color: '#333333', marginBottom: '0' }}>
-                  Manage visa applications and user accounts below.
-                </p>
-              </div>
-              <div>
-                <button
-                  className="btn btn-default"
-                  onClick={() => {
-                    logout();
-                    navigate("/j/eng/l");
-                  }}
-                  style={{
-                    fontWeight: 'bold',
-                    color: '#26374a',
-                    border: '1px solid #ccc',
-                    padding: '8px 16px',
-                  }}
-                >
-                  Sign Out
-                </button>
-              </div>
-            </div>
+      <div className="container" style={{ paddingTop: '20px', paddingBottom: '60px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
+          <div>
+            <h1 style={{ fontSize: '28px', fontWeight: '800', color: 'var(--ca-navy)', margin: '0 0 4px 0' }}>
+              IRCC Employee Workspace
+            </h1>
+            <p style={{ margin: 0, color: 'var(--ca-text-muted)', fontSize: '14px' }}>
+              Logged in as Processing Officer (<strong>{user?.username}</strong>) &bull; Origin: <strong>CA</strong>
+            </p>
           </div>
-
-          <div className="row row-flex" style={{ marginBottom: '35px', justifyContent: 'center' }}>
-            
-            {activeView === 'menu' && (
-              <>
-                <div className="col-md-6 col-sm-12" style={{ marginBottom: '20px', display: 'flex' }}>
-                  <div
-                    onClick={() => setActiveView('manage_visas')}
-                    style={{
-                      border: '1px solid #ccc',
-                      borderRadius: '4px',
-                      backgroundColor: '#ffffff',
-                      flex: 1,
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                      cursor: 'pointer',
-                      padding: '40px 20px',
-                      textAlign: 'center',
-                    }}
-                    onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
-                    onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                  >
-                    <h2 style={{ color: '#26374a', marginTop: 0 }}>Manage Visas</h2>
-                    <p style={{ color: '#333', fontSize: '16px' }}>Create and update visa applications.</p>
-                  </div>
-                </div>
-
-                <div className="col-md-6 col-sm-12" style={{ marginBottom: '20px', display: 'flex' }}>
-                  <div
-                    onClick={() => setActiveView('account_management')}
-                    style={{
-                      border: '1px solid #ccc',
-                      borderRadius: '4px',
-                      backgroundColor: '#ffffff',
-                      flex: 1,
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                      cursor: 'pointer',
-                      padding: '40px 20px',
-                      textAlign: 'center',
-                    }}
-                    onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
-                    onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                  >
-                    <h2 style={{ color: '#26374a', marginTop: 0 }}>Account Management</h2>
-                    <p style={{ color: '#333', fontSize: '16px' }}>Create new user accounts.</p>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {activeView === 'manage_visas' && (
-              <div className="col-md-8 col-sm-12" style={{ marginBottom: '25px', marginLeft: 'auto', marginRight: 'auto', float: 'none' }}>
-                <button
-                  className="btn btn-default"
-                  style={{ marginBottom: '15px' }}
-                  onClick={() => setActiveView('menu')}
-                >
-                  &larr; Back to Dashboard
-                </button>
-                <div
-                  style={{
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    backgroundColor: '#ffffff',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                  }}
-                >
-                  <div
-                    style={{
-                      backgroundColor: '#f5f5f5',
-                      borderBottom: '1px solid #ccc',
-                      padding: '12px 18px',
-                      fontWeight: 'bold',
-                      fontSize: '18px',
-                      color: '#26374a',
-                    }}
-                  >
-                    Manage Visas - Create Visa
-                  </div>
-                  <div style={{ padding: '18px', fontSize: '15px', lineHeight: '1.5', color: '#333' }}>
-                    {visaMessage && (
-                      <div className={`alert ${visaMessage.type === 'success' ? 'alert-success' : 'alert-danger'}`} style={{ marginBottom: '15px', padding: '10px 15px', borderRadius: '4px' }}>
-                        {visaMessage.text}
-                      </div>
-                    )}
-                    <form onSubmit={handleVisaSubmit} autoComplete="off">
-                      <div className="form-group">
-                        <label htmlFor="userId"><span className="field-name">User ID (or Select User):</span></label>
-                        {users.length > 0 ? (
-                          <select
-                            className="form-control"
-                            id="userId"
-                            value={visaData.userId}
-                            onChange={(e) => setVisaData({ ...visaData, userId: e.target.value })}
-                            required
-                          >
-                            <option value="">-- Select User --</option>
-                            {users.map(u => (
-                              <option key={u._id} value={u._id}>
-                                {u.username} ({u._id})
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <input
-                            type="text"
-                            className="form-control"
-                            id="userId"
-                            value={visaData.userId}
-                            onChange={(e) => setVisaData({ ...visaData, userId: e.target.value })}
-                            placeholder="Enter MongoDB User ID"
-                            required
-                          />
-                        )}
-                      </div>
-
-                      <div className="form-group">
-                        <label htmlFor="applicationType"><span className="field-name">Application Type:</span></label>
-                        <select
-                          className="form-control"
-                          id="applicationType"
-                          value={visaData.applicationType}
-                          onChange={(e) => setVisaData({ ...visaData, applicationType: e.target.value })}
-                        >
-                          <option value="visa">visa</option>
-                          <option value="sponsorship">sponsorship</option>
-                          <option value="aewv">aewv</option>
-                        </select>
-                      </div>
-
-                      <div className="form-group">
-                        <label htmlFor="visaType"><span className="field-name">Visa Type:</span></label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          id="visaType"
-                          value={visaData.visaType || ''}
-                          onChange={(e) => setVisaData({ ...visaData, visaType: e.target.value })}
-                          placeholder="e.g. Student, Visitor, Work"
-                        />
-                      </div>
-
-                      <div className="form-group">
-                        <label htmlFor="givenNames"><span className="field-name">Given Names:</span></label>
-                        <input type="text" className="form-control" id="givenNames" value={visaData.givenNames} onChange={(e) => setVisaData({ ...visaData, givenNames: e.target.value })} />
-                      </div>
-                      <div className="form-group">
-                        <label htmlFor="familyName"><span className="field-name">Family Name:</span></label>
-                        <input type="text" className="form-control" id="familyName" value={visaData.familyName} onChange={(e) => setVisaData({ ...visaData, familyName: e.target.value })} />
-                      </div>
-                      <div className="form-group" style={{ border: '1px dashed #ccc', padding: '15px', borderRadius: '4px', marginBottom: '20px' }}>
-                        <label style={{ fontWeight: 'bold', color: '#26374a', marginBottom: '10px', display: 'block' }}>Documents List</label>
-                        
-                        {uploadedDocs.length > 0 ? (
-                          <ul style={{ paddingLeft: '20px', marginBottom: '15px' }}>
-                            {uploadedDocs.map((doc, index) => (
-                              <li key={index} style={{ marginBottom: '5px', fontSize: '14px' }}>
-                                <strong>{doc.documentName}</strong> ({doc.document.startsWith('data:') ? 'New Upload' : 'Existing File'})
-                                <button
-                                  type="button"
-                                  onClick={() => removeDocumentFromList(index)}
-                                  style={{
-                                    marginLeft: '10px',
-                                    backgroundColor: '#d9534f',
-                                    color: '#fff',
-                                    border: 'none',
-                                    padding: '2px 8px',
-                                    borderRadius: '3px',
-                                    fontSize: '12px',
-                                    cursor: 'pointer'
-                                  }}
-                                >
-                                  Remove
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p style={{ fontSize: '14px', color: '#666', fontStyle: 'italic', marginBottom: '15px' }}>No documents added yet.</p>
-                        )}
-
-                        <div className="row-no-gutters" style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                          <div style={{ flex: 1, minWidth: '200px' }}>
-                            <label htmlFor="document-input" style={{ fontSize: '13px', fontWeight: 'normal', marginBottom: '4px', display: 'block' }}>Choose File:</label>
-                            <input
-                              type="file"
-                              className="form-control"
-                              id="document-input"
-                              onChange={handleFileChange}
-                              style={{ height: '38px', padding: '6px 12px' }}
-                            />
-                          </div>
-                          <div style={{ flex: 1, minWidth: '200px' }}>
-                            <label htmlFor="document-name-input" style={{ fontSize: '13px', fontWeight: 'normal', marginBottom: '4px', display: 'block' }}>Document Name:</label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              id="document-name-input"
-                              value={currentDocName}
-                              onChange={(e) => setCurrentDocName(e.target.value)}
-                              placeholder="e.g. Passport, Visa letter"
-                              style={{ height: '38px' }}
-                            />
-                          </div>
-                          <div>
-                            <button
-                              type="button"
-                              onClick={addDocumentToList}
-                              className="btn btn-default"
-                              style={{
-                                fontWeight: 'bold',
-                                color: '#26374a',
-                                border: '1px solid #ccc',
-                                height: '38px',
-                                padding: '0 15px',
-                                display: 'inline-flex',
-                                alignItems: 'center'
-                              }}
-                            >
-                              + Add Document
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="form-group">
-                        <label htmlFor="biometricsNumber"><span className="field-name">Biometrics Number:</span></label>
-                        <input type="text" className="form-control" id="biometricsNumber" value={visaData.biometricsNumber} onChange={(e) => setVisaData({ ...visaData, biometricsNumber: e.target.value })} />
-                      </div>
-                      <div className="form-group">
-                        <label htmlFor="dateOfBiometricsEnrolment"><span className="field-name">Date of Biometrics Enrolment:</span></label>
-                        <input type="date" className="form-control" id="dateOfBiometricsEnrolment" value={visaData.dateOfBiometricsEnrolment} onChange={(e) => setVisaData({ ...visaData, dateOfBiometricsEnrolment: e.target.value })} />
-                      </div>
-                      <div className="form-group">
-                        <label htmlFor="biometricsExpiryDate"><span className="field-name">Biometrics Expiry Date:</span></label>
-                        <input type="date" className="form-control" id="biometricsExpiryDate" value={visaData.biometricsExpiryDate} onChange={(e) => setVisaData({ ...visaData, biometricsExpiryDate: e.target.value })} />
-                      </div>
-                      <div className="form-group">
-                        <label htmlFor="uci"><span className="field-name">UCI:</span></label>
-                        <input type="text" className="form-control" id="uci" value={visaData.uci} onChange={(e) => setVisaData({ ...visaData, uci: e.target.value })} />
-                      </div>
-                      <div className="form-group">
-                        <label htmlFor="applicationNumber"><span className="field-name">Application Number:</span></label>
-                        <input type="text" className="form-control" id="applicationNumber" value={visaData.applicationNumber} onChange={(e) => setVisaData({ ...visaData, applicationNumber: e.target.value })} />
-                      </div>
-                      <div className="form-group">
-                        <label htmlFor="receiveDate"><span className="field-name">Receive Date:</span></label>
-                        <input type="date" className="form-control" id="receiveDate" value={visaData.receiveDate} onChange={(e) => setVisaData({ ...visaData, receiveDate: e.target.value })} />
-                      </div>
-                      <div className="form-group">
-                        <label htmlFor="medicalExaminationPassDate"><span className="field-name">Medical Examination Pass Date:</span></label>
-                        <input type="date" className="form-control" id="medicalExaminationPassDate" value={visaData.medicalExaminationPassDate} onChange={(e) => setVisaData({ ...visaData, medicalExaminationPassDate: e.target.value })} />
-                      </div>
-                      <div className="form-group">
-                        <label htmlFor="documentReviewDate"><span className="field-name">Document Review Date:</span></label>
-                        <input type="date" className="form-control" id="documentReviewDate" value={visaData.documentReviewDate} onChange={(e) => setVisaData({ ...visaData, documentReviewDate: e.target.value })} />
-                      </div>
-                      <div className="form-group">
-                        <label htmlFor="latestUpdateDate"><span className="field-name">Latest Update Date:</span></label>
-                        <input type="date" className="form-control" id="latestUpdateDate" value={visaData.latestUpdateDate} onChange={(e) => setVisaData({ ...visaData, latestUpdateDate: e.target.value })} />
-                      </div>
-                      <div className="form-group">
-                        <label htmlFor="latestUpdateStatus"><span className="field-name">Latest Update Status:</span></label>
-                        <input type="text" className="form-control" id="latestUpdateStatus" value={visaData.latestUpdateStatus} onChange={(e) => setVisaData({ ...visaData, latestUpdateStatus: e.target.value })} />
-                      </div>
-                      <div className="form-group">
-                        <label htmlFor="latestUpdateContent"><span className="field-name">Latest Update Content:</span></label>
-                        <textarea
-                          className="form-control"
-                          id="latestUpdateContent"
-                          rows="3"
-                          style={{ minHeight: '80px', resize: 'vertical' }}
-                          value={visaData.latestUpdateContent}
-                          onChange={(e) => setVisaData({ ...visaData, latestUpdateContent: e.target.value })}
-                        />
-                      </div>
-
-                      <div className="form-group form-buttons">
-                        <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '15px' }} disabled={visaLoading}>
-                          {visaLoading ? 'Creating Visa...' : 'Create Visa'}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeView === 'account_management' && (
-              <div className="col-md-8 col-sm-12" style={{ marginBottom: '25px', marginLeft: 'auto', marginRight: 'auto', float: 'none' }}>
-                <button
-                  className="btn btn-default"
-                  style={{ marginBottom: '15px' }}
-                  onClick={() => setActiveView('menu')}
-                >
-                  &larr; Back to Dashboard
-                </button>
-                <div
-                  style={{
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    backgroundColor: '#ffffff',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                  }}
-                >
-                  <div
-                    style={{
-                      backgroundColor: '#f5f5f5',
-                      borderBottom: '1px solid #ccc',
-                      padding: '12px 18px',
-                      fontWeight: 'bold',
-                      fontSize: '18px',
-                      color: '#26374a',
-                    }}
-                  >
-                    Account Management - Create Account
-                  </div>
-                  <div style={{ padding: '18px', fontSize: '15px', lineHeight: '1.5', color: '#333' }}>
-                    {accountMessage && (
-                      <div className={`alert ${accountMessage.type === 'success' ? 'alert-success' : 'alert-danger'}`} style={{ marginBottom: '15px', padding: '10px 15px', borderRadius: '4px' }}>
-                        {accountMessage.text}
-                      </div>
-                    )}
-                    <form onSubmit={handleAccountSubmit} autoComplete="off">
-                      <div className="form-group">
-                        <label htmlFor="username">
-                          <span className="field-name">Username:</span>
-                        </label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          id="username"
-                          value={accountData.username}
-                          onChange={(e) => setAccountData({ ...accountData, username: e.target.value })}
-                          required
-                        />
-                      </div>
-
-                      <div className="form-group">
-                        <label htmlFor="password">
-                          <span className="field-name">Password:</span>
-                        </label>
-                        <input
-                          type="password"
-                          className="form-control"
-                          id="password"
-                          value={accountData.password}
-                          onChange={(e) => setAccountData({ ...accountData, password: e.target.value })}
-                          required
-                        />
-                      </div>
-
-                      <div className="form-group form-buttons">
-                        <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '15px' }} disabled={accountLoading}>
-                          {accountLoading ? 'Creating User...' : 'Create User'}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              </div>
-            )}
+          <div>
+            <button
+              type="button"
+              className="ca-btn ca-btn-secondary"
+              onClick={() => {
+                logout();
+                navigate('/j/eng/l');
+              }}
+            >
+              <LogOut size={16} /> Sign Out
+            </button>
           </div>
-        </main>
+        </div>
+
+        {alert && (
+          <div
+            className={`alert alert-${alert.type}`}
+            style={{
+              padding: '12px 18px',
+              borderRadius: '4px',
+              marginBottom: '20px',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}
+          >
+            {alert.message}
+          </div>
+        )}
+
+        {/* Navigation Tabs */}
+        <div className="ca-nav-tabs">
+          <button
+            type="button"
+            className={`ca-nav-tab ${activeTab === 'visas' ? 'active' : ''}`}
+            onClick={() => setActiveTab('visas')}
+          >
+            <FileText size={16} /> Visas ({visasList.length})
+          </button>
+          <button
+            type="button"
+            className={`ca-nav-tab ${activeTab === 'payments' ? 'active' : ''}`}
+            onClick={() => setActiveTab('payments')}
+          >
+            <CreditCard size={16} /> Payments & Fees ({paymentsList.length})
+          </button>
+          <button
+            type="button"
+            className={`ca-nav-tab ${activeTab === 'accounts' ? 'active' : ''}`}
+            onClick={() => setActiveTab('accounts')}
+          >
+            <Users size={16} /> User Accounts ({usersList.length})
+          </button>
+        </div>
+
+        {/* Tab Contents */}
+        {activeTab === 'visas' && (
+          <VisasTab
+            visaFormData={visaFormData}
+            setVisaFormData={setVisaFormData}
+            uploadedDocs={visaDocs}
+            setUploadedDocs={setVisaDocs}
+            currentDocName={visaDocName}
+            setCurrentDocName={setVisaDocName}
+            currentDocBase64={visaDocBase64}
+            setCurrentDocBase64={setVisaDocBase64}
+            handleFileChange={handleVisaFileChange}
+            addDocumentToList={addVisaDocToList}
+            removeDocumentFromList={removeVisaDocFromList}
+            handleVisaSubmit={handleVisaSubmit}
+            isVisaSubmitting={isVisaSubmitting}
+            usersList={usersList}
+            visasList={visasList}
+            visaSearch={visaSearch}
+            setVisaSearch={setVisaSearch}
+            fetchVisas={fetchVisas}
+            setEditingVisa={setEditingVisa}
+            setPreviewVisa={(v) => { setPreviewItem(v); }}
+            handleDeleteVisa={handleDeleteVisa}
+          />
+        )}
+
+        {activeTab === 'payments' && (
+          <PaymentsTab
+            paymentFormData={paymentFormData}
+            setPaymentFormData={setPaymentFormData}
+            handleCreatePayment={handleCreatePayment}
+            isPaymentSubmitting={isPaymentSubmitting}
+            paymentsList={paymentsList}
+            visasList={visasList}
+            sponsorshipsList={[]}
+            nominationsList={[]}
+            usersList={usersList}
+            fetchPayments={fetchPayments}
+            paymentSearch={paymentSearch}
+            setPaymentSearch={setPaymentSearch}
+            paymentStatusFilter={paymentStatusFilter}
+            setPaymentStatusFilter={setPaymentStatusFilter}
+            paymentTypeFilter={paymentTypeFilter}
+            setPaymentTypeFilter={setPaymentTypeFilter}
+            handleTogglePaymentStatus={handleTogglePaymentStatus}
+            handleDeletePayment={handleDeletePayment}
+          />
+        )}
+
+        {activeTab === 'accounts' && (
+          <AccountsTab
+            accountFormData={accountFormData}
+            setAccountFormData={setAccountFormData}
+            isAccountSubmitting={isAccountSubmitting}
+            handleCreateAccount={() => handleCreateAccount('user')}
+            role="employe"
+            usersList={usersList}
+            fetchUsers={fetchUsers}
+            userSearch={userSearch}
+            setUserSearch={setUserSearch}
+            setEditingUser={setEditingUser}
+            handleDeleteUser={handleDeleteUser}
+          />
+        )}
       </div>
+
+      {editingUser && (
+        <EditUserModal
+          user={editingUser}
+          onClose={() => setEditingUser(null)}
+          onSave={() => {
+            fetchUsers();
+            showAlert('User account updated successfully.', 'success');
+          }}
+          token={token}
+        />
+      )}
+
+      {editingVisa && (
+        <EditVisaModal
+          visa={editingVisa}
+          users={usersList}
+          onClose={() => setEditingVisa(null)}
+          onSave={() => {
+            fetchVisas();
+            showAlert('Visa application updated successfully.', 'success');
+          }}
+          token={token}
+        />
+      )}
+
+      {previewItem && (
+        <VisaPreviewModal
+          item={previewItem}
+          type="visa"
+          onClose={() => setPreviewItem(null)}
+        />
+      )}
     </div>
   );
 }

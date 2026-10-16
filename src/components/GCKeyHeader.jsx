@@ -1,4 +1,3 @@
-import React from "react";
 import { Link } from "react-router-dom";
 import sigBlkEn from "../assets/sig-blk-en.svg";
 import { useTranslation } from "../context/LanguageContext";

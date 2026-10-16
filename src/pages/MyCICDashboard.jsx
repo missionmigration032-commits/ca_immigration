@@ -34,9 +34,11 @@ export default function MyCICDashboard() {
     return null;
   });
 
-  const applicantName = visa ? `${visa.givenNames || ''} ${visa.familyName || ''}`.trim() : "";
-  const appNumber = visa?.applicationNumber || "";
-  const dateSentStr = visa?.latestUpdate?.date || "";
+  const applicantName = visa
+    ? (visa.visaApplicant || `${visa.givenNames || visa.givenName || ''} ${visa.familyName || ''}`.trim())
+    : "";
+  const appNumber = visa?.applicationNumber || visa?.applicationId || visa?.fileNumber || visa?.uci || "";
+  const dateSentStr = visa?.latestUpdate?.date || visa?.approvedDate || visa?.receiveDate || "";
 
   const messagesList = [];
   if (visa?.document) {

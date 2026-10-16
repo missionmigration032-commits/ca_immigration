@@ -1,4 +1,3 @@
-import React from "react";
 import wmmsBlk from "../assets/wmms-blk.svg";
 
 export default function GCKeyFooter() {

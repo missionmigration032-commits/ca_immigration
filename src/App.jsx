@@ -24,6 +24,8 @@ import MyCICHome from "./pages/MyCICHome";
 import MyCICDashboard from "./pages/MyCICDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentCancel from "./pages/PaymentCancel";
 
 import { AuthProvider } from "./context/AuthContext";
 import { LanguageProvider } from "./context/LanguageContext";
@@ -87,6 +89,10 @@ function App() {
           <Route path="/mycic/dashboard.html" element={<MyCICDashboard />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/employee" element={<EmployeeDashboard />} />
+          <Route path="/mycic/payment/success" element={<PaymentSuccess />} />
+          <Route path="/payment/success" element={<PaymentSuccess />} />
+          <Route path="/mycic/payment/cancel" element={<PaymentCancel />} />
+          <Route path="/payment/cancel" element={<PaymentCancel />} />
         </Route>
 
         {/* MyCIC Standalone Routes (Renders GCKeyHeader/Footer internally) */}
